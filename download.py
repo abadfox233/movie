@@ -209,9 +209,4 @@ def download_movie(url, name):
 
 
 if __name__ == '__main__':
-    # with open('error.txt', 'w'):
-        # pass
-    # process_download('../加勒比 鮑魚圖鑑 澀谷愛華.m3u8', 'http://video1.yocoolnet.com/files/mp4/y/m/j/')
-    # download_error_url()
-    # join_temp_file(605, '加勒比 鮑魚圖鑑 澀谷愛華')
     download_error_url()
