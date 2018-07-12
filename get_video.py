@@ -40,7 +40,7 @@ def get_m3u8_url(session, url):
         jj = str(gg)
         pattern = re.compile('.*(http://video1.yocoolnet.com/files/mp4/.*\.m3u8).*')
         result = pattern.findall(jj)
-        if len(result)>1 and isinstance(result[0], str):
+        if len(result) > 1 and isinstance(result[0], str):
             return result[0]
         else:
             return None
