@@ -4,3 +4,8 @@ m3u8/
 output/
 video/
 .idea/
+error.txt
+sql_insert.py
+image/
+test.*
+test_mysql.py

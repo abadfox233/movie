@@ -2,16 +2,18 @@
 # Created by Acer on 2018/2/24
 
 import multiprocessing
-import time
-import re
-import requests
-from urllib.parse import urljoin
 import os
-import threading
-import m3u8
 import random
+import re
 import sys
+import threading
+import time
+from urllib.parse import urljoin
+
+import m3u8
 import redis
+import requests
+
 BLOCK_SIZE = 1024
 large = 100
 download_over = False
@@ -22,8 +24,11 @@ header = {
 session = requests.Session()
 session.headers = header
 process_bar_threading = None
-REDIS_KEY = '52movie'
+'''
+通过 redis的 '52movie'键来控制 进程下载速度
+'''
 
+REDIS_KEY = '52movie'
 try:
     conn = redis.Redis(host='192.168.1.108', port=6379, decode_responses=True)
 except:
@@ -33,10 +38,18 @@ conn.set(REDIS_KEY, 0)
 
 
 def add_process_num():
+    '''
+    增加 redis 键的值
+    :return:
+    '''
     conn.incr(REDIS_KEY, 1)
 
 
 def get_process_num():
+    '''
+    获取当前的键值
+    :return:
+    '''
     result = conn.get(REDIS_KEY)
     if result.isdigit():
         if int(result) > 0:
@@ -48,6 +61,10 @@ def get_process_num():
 
 
 def deduct_process_num():
+    '''
+    当前键值减一
+    :return:
+    '''
     num = get_process_num()
     conn.set(REDIS_KEY, num - 1)
 
@@ -125,9 +142,7 @@ def download(url, num):
     :param num:  文件名
     :return:
     '''
-    # print(num)
     flag = True
-    # print('正在下载' + url)
     try:
         time.sleep(int(random.random() * 10) + 1)
         result = requests.get(url, timeout=30, headers=header)
@@ -135,14 +150,11 @@ def download(url, num):
             with open('./video/%s.ts' % str(num), "wb") as file:
                 file.write(result.content)
             result.close()
-            # time.sleep(3)
         else:
             flag = False
     except Exception as e:
-        # print(str(e))
         flag = False
     if not flag:
-        # print(url + '下载失败！')
         time.sleep(2)
         with open('error.txt', 'a') as file:
             file.write(url + '(%d)' % num + '\n')
@@ -186,19 +198,32 @@ def join_temp_file(num, name):
 
 
 def download_error_url():
-    global download_over
-    download_over = True
-    # process_bar_threading.join()
-    print()
-    print('[*] 开始下载出错的链接')
+    '''
+    下载出错连接
+    :return:
+    '''
     pattern = re.compile('(.*.ts)\((\d+)\)')
     url_list = []
+    if not os.path.exists('./error.txt'):
+        return
     with open('./error.txt', 'r') as file:
         for i in file.readlines():
             match = pattern.findall(i)[0]
             if len(match) == 2:
                 url_list.append((match[0], int(match[1])))
-                threads_down(url_list)
+    pool = multiprocessing.Pool(processes=10)
+    temp_urls_list = []
+    for i in range(len(url_list)):
+        if i > 0 and i % 80 == 0:
+            num = get_process_num()
+            time.sleep(num * 4)
+        temp_urls_list.append(url_list.pop())
+        if len(temp_urls_list) == 10:
+            pool.apply_async(threads_down, (temp_urls_list,))
+            temp_urls_list = []
+    pool.apply_async(threads_down, (temp_urls_list,))
+    pool.close()
+    pool.join()
 
 
 def get_m3u8_list(url, file_name):
@@ -237,8 +262,8 @@ def download_movie(url, name):
     if len(name) > 25:
         name = name[0:24]
     base_url, file_name = get_m3u8_list(url, name)
-    # file_name = name+'.m3u8'
     large = process_download(file_name, base_url)
+    download_error_url()
     join_temp_file(large, name)
 
 
